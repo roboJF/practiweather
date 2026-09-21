@@ -4,6 +4,7 @@ import requests
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
+from .location_queries import normalize_location_query
 from .services import get_current_location, get_weather
 
 
@@ -104,30 +105,78 @@ class LocationServiceTests(SimpleTestCase):
         )
 
 
+class LocationQueryTests(SimpleTestCase):
+    def test_normalizes_us_state_name_without_commas(self):
+        self.assertEqual(
+            normalize_location_query('Charlotte North Carolina'),
+            'Charlotte,NC,US',
+        )
+
+    def test_normalizes_comma_separated_full_names(self):
+        self.assertEqual(
+            normalize_location_query(
+                'Charlotte, North Carolina, United States'
+            ),
+            'Charlotte,NC,US',
+        )
+
+    def test_leaves_city_only_query_unchanged(self):
+        self.assertEqual(normalize_location_query('Paris'), 'Paris')
+
+
 @override_settings(OPENWEATHER_API_KEY='test-key')
 class WeatherServiceTests(SimpleTestCase):
     @patch('weatherApp.services.requests.get')
     def test_successful_response_returns_weather_data(self, get):
-        response = Mock(status_code=200)
-        response.json.return_value = {
+        geocoding_response = Mock(status_code=200)
+        geocoding_response.json.return_value = [
+            {
+                'name': 'Charlotte',
+                'lat': 35.2272,
+                'lon': -80.8431,
+                'country': 'US',
+                'state': 'North Carolina',
+            }
+        ]
+        weather_response = Mock(status_code=200)
+        weather_response.json.return_value = {
+            'name': 'Charlotte',
             'main': {'temp': 72.25},
             'weather': [{'description': 'clear sky'}],
         }
-        get.return_value = response
+        get.side_effect = [geocoding_response, weather_response]
 
-        weather = get_weather('Baltimore')
+        weather = get_weather('Charlotte North Carolina')
 
         self.assertEqual(
             weather,
             {
-                'city': 'Baltimore',
+                'city': 'Charlotte',
                 'temperature': 72.25,
                 'conditions': 'clear sky',
             },
         )
-        get.assert_called_once_with(
-            'https://api.openweathermap.org/data/2.5/weather'
-            '?q=Baltimore&units=imperial&appid=test-key'
+        self.assertEqual(
+            get.call_args_list,
+            [
+                call(
+                    'https://api.openweathermap.org/geo/1.0/direct',
+                    params={
+                        'q': 'Charlotte,NC,US',
+                        'limit': 1,
+                        'appid': 'test-key',
+                    },
+                ),
+                call(
+                    'https://api.openweathermap.org/data/2.5/weather',
+                    params={
+                        'lat': 35.2272,
+                        'lon': -80.8431,
+                        'units': 'imperial',
+                        'appid': 'test-key',
+                    },
+                ),
+            ],
         )
 
     @patch('weatherApp.services.requests.get')
@@ -146,6 +195,26 @@ class WeatherServiceTests(SimpleTestCase):
                 ),
             },
         )
+
+    @patch('weatherApp.services.requests.get')
+    def test_no_geocoding_matches_returns_existing_error_message(self, get):
+        response = Mock(status_code=200)
+        response.json.return_value = []
+        get.return_value = response
+
+        weather = get_weather('Unknown')
+
+        self.assertEqual(
+            weather,
+            {
+                'city': 'Unknown',
+                'temperature': 'N/A',
+                'conditions': (
+                    'City is either not found or the request is invalid'
+                ),
+            },
+        )
+        self.assertEqual(get.call_count, 1)
 
     @patch('weatherApp.services.requests.get')
     def test_connection_error_returns_existing_error_message(self, get):

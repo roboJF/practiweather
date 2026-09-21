@@ -3,11 +3,15 @@
 import requests
 from django.conf import settings
 
+from .location_queries import normalize_location_query
+
 IP_ADDRESS_URL = 'http://api.ipify.org'
 GEOLOCATION_URL = 'http://ip-api.com/json/{ip_address}'
-WEATHER_URL = (
+OPENWEATHER_GEOCODING_URL = (
+    'https://api.openweathermap.org/geo/1.0/direct'
+)
+OPENWEATHER_WEATHER_URL = (
     'https://api.openweathermap.org/data/2.5/weather'
-    '?q={city}&units=imperial&appid={api_key}'
 )
 
 
@@ -34,25 +38,38 @@ def format_location(location):
 
 def get_weather(city):
     """Return the existing template-friendly weather data for a city."""
-    url = WEATHER_URL.format(
-        city=city,
-        api_key=settings.OPENWEATHER_API_KEY,
-    )
-
     try:
-        response = requests.get(url)
-        if response.status_code != 200:
-            return {
-                'city': city,
-                'temperature': 'N/A',
-                'conditions': (
-                    'City is either not found or the request is invalid'
-                ),
-            }
+        geocoding_response = requests.get(
+            OPENWEATHER_GEOCODING_URL,
+            params={
+                'q': normalize_location_query(city),
+                'limit': 1,
+                'appid': settings.OPENWEATHER_API_KEY,
+            },
+        )
+        if geocoding_response.status_code != 200:
+            return _invalid_city_weather(city)
 
-        data = response.json()
+        locations = geocoding_response.json()
+        if not locations:
+            return _invalid_city_weather(city)
+
+        location = locations[0]
+        weather_response = requests.get(
+            OPENWEATHER_WEATHER_URL,
+            params={
+                'lat': location['lat'],
+                'lon': location['lon'],
+                'units': 'imperial',
+                'appid': settings.OPENWEATHER_API_KEY,
+            },
+        )
+        if weather_response.status_code != 200:
+            return _invalid_city_weather(city)
+
+        data = weather_response.json()
         return {
-            'city': city,
+            'city': data['name'],
             'temperature': data['main']['temp'],
             'conditions': data['weather'][0]['description'],
         }
@@ -62,3 +79,11 @@ def get_weather(city):
             'temperature': 'N/A',
             'conditions': 'Could not connect to weather service',
         }
+
+
+def _invalid_city_weather(city):
+    return {
+        'city': city,
+        'temperature': 'N/A',
+        'conditions': 'City is either not found or the request is invalid',
+    }
