@@ -8,21 +8,21 @@ body {
     font-family: Arial, sans-serif;
     background-color: white;
     color: black;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    height: 100vh;
+    min-height: 100vh;
     text-align: center;
+}
+
+.weather-app {
+    width: min(960px, 100%);
+    margin: 0 auto;
+    padding: 20px;
 }
 
 .search-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 20px;
+    width: 100%;
 }
 
 .search-bar {
@@ -50,9 +50,7 @@ body {
 }
 
 .weather-info {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    margin: 56px 0;
 }
 
 .city-name {
@@ -69,4 +67,61 @@ body {
 .conditions {
     font-size: 36px;
     margin-top: 10px;
+}
+
+.map-section {
+    width: 100%;
+    margin-bottom: 32px;
+}
+
+.map-section h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.map-status {
+    min-height: 24px;
+    margin-bottom: 12px;
+    color: #555;
+}
+
+#weatherMap {
+    width: 100%;
+    height: 420px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #eee;
+    text-align: left;
+}
+
+@media (max-width: 600px) {
+    .weather-app {
+        padding: 16px;
+    }
+
+    .search-bar {
+        min-width: 0;
+    }
+
+    .search-button {
+        padding-right: 18px;
+        padding-left: 18px;
+    }
+
+    .weather-info {
+        margin: 40px 0;
+    }
+
+    .city-name,
+    .conditions {
+        font-size: 28px;
+    }
+
+    .temperature {
+        font-size: 56px;
+    }
+
+    #weatherMap {
+        height: 360px;
+    }
 }

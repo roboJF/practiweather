@@ -53,32 +53,42 @@ def get_weather(city):
         locations = geocoding_response.json()
         if not locations:
             return _invalid_city_weather(city)
+    except requests.exceptions.RequestException:
+        return _connection_error_weather(city)
 
-        location = locations[0]
-        weather_response = requests.get(
+    location = locations[0]
+    return get_weather_by_coordinates(
+        location['lat'],
+        location['lon'],
+        fallback_city=city,
+    )
+
+
+def get_weather_by_coordinates(latitude, longitude, fallback_city='Selected location'):
+    """Return weather for a geographic point without a geocoding request."""
+    try:
+        response = requests.get(
             OPENWEATHER_WEATHER_URL,
             params={
-                'lat': location['lat'],
-                'lon': location['lon'],
+                'lat': latitude,
+                'lon': longitude,
                 'units': 'imperial',
                 'appid': settings.OPENWEATHER_API_KEY,
             },
         )
-        if weather_response.status_code != 200:
-            return _invalid_city_weather(city)
+        if response.status_code != 200:
+            return _invalid_city_weather(fallback_city)
 
-        data = weather_response.json()
+        data = response.json()
         return {
             'city': data['name'],
             'temperature': data['main']['temp'],
             'conditions': data['weather'][0]['description'],
+            'latitude': latitude,
+            'longitude': longitude,
         }
     except requests.exceptions.RequestException:
-        return {
-            'city': city,
-            'temperature': 'N/A',
-            'conditions': 'Could not connect to weather service',
-        }
+        return _connection_error_weather(fallback_city)
 
 
 def _invalid_city_weather(city):
@@ -86,4 +96,12 @@ def _invalid_city_weather(city):
         'city': city,
         'temperature': 'N/A',
         'conditions': 'City is either not found or the request is invalid',
+    }
+
+
+def _connection_error_weather(city):
+    return {
+        'city': city,
+        'temperature': 'N/A',
+        'conditions': 'Could not connect to weather service',
     }

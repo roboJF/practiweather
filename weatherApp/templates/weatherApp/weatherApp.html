@@ -5,27 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather App</title>
     {% load static %}
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css"
+        integrity="sha256-qx5w1Z7EBGW65+cDDaLzzPKBM/1QLmK9WY7vut/XpzI="
+        crossorigin="anonymous"
+    >
     <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
 <body>
+    <main class="weather-app">
+        <form method="post" class="search-container">
+            {% csrf_token %}
+            <input
+                type="text"
+                name="city"
+                id="citySearch"
+                class="search-bar"
+                placeholder="Enter city..."
+            >
+            <button class="search-button" type="submit" id="searchButton">
+                Enter
+            </button>
+        </form>
 
-    <form method="post" class="search-container">
-        {% csrf_token %}
-        <input type="text" name="city" id="citySearch" class="search-bar" placeholder="Enter city..." />
-        <button class="search-button" type="submit" id="searchButton">Enter</button>
-    </form>
+        <section class="weather-info" aria-live="polite">
+            <div class="city-name" id="cityName">
+                {{ weather_data.city }}
+            </div>
+            <div class="temperature" id="temperature">
+                {{ weather_data.temperature|floatformat:1 }}°F
+            </div>
+            <div class="conditions" id="conditions">
+                {{ weather_data.conditions|title }}
+            </div>
+        </section>
 
-    <div class="weather-info">
-        <div class="city-name" id="cityName">
-            {{weather_data.city}}
-        </div>
-        <div class="temperature" id="temperature">
-            {{weather_data.temperature|floatformat:1}}°F
-        </div>
-        <div class="conditions" id="conditions">
-            {{weather_data.conditions|title}}
-        </div>
-    </div>
+        <section class="map-section" aria-labelledby="mapHeading">
+            <h2 id="mapHeading">Explore the map</h2>
+            <p id="mapStatus" class="map-status" aria-live="polite">
+                Click anywhere on the map to see the weather there.
+            </p>
+            <div
+                id="weatherMap"
+                data-weather-url="{% url 'weatherApp:weather_by_coordinates' %}"
+                data-latitude="{{ weather_data.latitude|default:'' }}"
+                data-longitude="{{ weather_data.longitude|default:'' }}"
+                data-use-browser-location="{{ use_browser_location|yesno:'true,false' }}"
+            ></div>
+        </section>
+    </main>
 
+    <script
+        src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"
+        integrity="sha256-RamwepGJzlYFTGIKlHzPQeKR5YyV6bYVM7dAqqZe5cs="
+        crossorigin="anonymous"
+    ></script>
+    <script src="{% static 'weatherApp/weather.js' %}"></script>
 </body>
 </html>

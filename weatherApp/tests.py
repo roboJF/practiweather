@@ -5,7 +5,11 @@ from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
 from .location_queries import normalize_location_query
-from .services import get_current_location, get_weather
+from .services import (
+    get_current_location,
+    get_weather,
+    get_weather_by_coordinates,
+)
 
 
 class IndexViewTests(SimpleTestCase):
@@ -32,7 +36,14 @@ class IndexViewTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         get_weather.assert_called_once_with(self.default_city)
         self.assertEqual(response.context['weather_data'], self.weather)
+        self.assertTrue(response.context['use_browser_location'])
         self.assertTemplateUsed(response, 'weatherApp/weatherApp.html')
+        self.assertContains(response, 'id="weatherMap"')
+        self.assertContains(response, 'data-use-browser-location="true"')
+        self.assertContains(
+            response,
+            reverse('weatherApp:weather_by_coordinates'),
+        )
 
     @patch('weatherApp.views.get_weather')
     @patch('weatherApp.views.get_current_location')
@@ -54,6 +65,8 @@ class IndexViewTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         get_weather.assert_called_once_with('Boston')
+        self.assertFalse(response.context['use_browser_location'])
+        self.assertContains(response, 'data-use-browser-location="false"')
 
     @patch('weatherApp.views.get_weather')
     @patch('weatherApp.views.get_current_location')
@@ -124,6 +137,46 @@ class LocationQueryTests(SimpleTestCase):
         self.assertEqual(normalize_location_query('Paris'), 'Paris')
 
 
+class CoordinateWeatherViewTests(SimpleTestCase):
+    @patch('weatherApp.views.get_weather_by_coordinates')
+    def test_valid_coordinates_return_weather_json(self, get_weather):
+        weather = {
+            'city': 'Charlotte',
+            'temperature': 72.25,
+            'conditions': 'clear sky',
+            'latitude': 35.2272,
+            'longitude': -80.8431,
+        }
+        get_weather.return_value = weather
+
+        response = self.client.post(
+            reverse('weatherApp:weather_by_coordinates'),
+            {'latitude': '35.2272', 'longitude': '-80.8431'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'weather_data': weather})
+        get_weather.assert_called_once_with(35.2272, -80.8431)
+
+    @patch('weatherApp.views.get_weather_by_coordinates')
+    def test_invalid_coordinates_return_bad_request(self, get_weather):
+        response = self.client.post(
+            reverse('weatherApp:weather_by_coordinates'),
+            {'latitude': '91', 'longitude': '-80.8431'},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {'error': 'Invalid coordinates'})
+        get_weather.assert_not_called()
+
+    def test_coordinate_endpoint_only_accepts_post(self):
+        response = self.client.get(
+            reverse('weatherApp:weather_by_coordinates')
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+
 @override_settings(OPENWEATHER_API_KEY='test-key')
 class WeatherServiceTests(SimpleTestCase):
     @patch('weatherApp.services.requests.get')
@@ -154,6 +207,8 @@ class WeatherServiceTests(SimpleTestCase):
                 'city': 'Charlotte',
                 'temperature': 72.25,
                 'conditions': 'clear sky',
+                'latitude': 35.2272,
+                'longitude': -80.8431,
             },
         )
         self.assertEqual(
@@ -215,6 +270,38 @@ class WeatherServiceTests(SimpleTestCase):
             },
         )
         self.assertEqual(get.call_count, 1)
+
+    @patch('weatherApp.services.requests.get')
+    def test_coordinate_weather_uses_weather_endpoint_directly(self, get):
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            'name': 'Charlotte',
+            'main': {'temp': 72.25},
+            'weather': [{'description': 'clear sky'}],
+        }
+        get.return_value = response
+
+        weather = get_weather_by_coordinates(35.2272, -80.8431)
+
+        self.assertEqual(
+            weather,
+            {
+                'city': 'Charlotte',
+                'temperature': 72.25,
+                'conditions': 'clear sky',
+                'latitude': 35.2272,
+                'longitude': -80.8431,
+            },
+        )
+        get.assert_called_once_with(
+            'https://api.openweathermap.org/data/2.5/weather',
+            params={
+                'lat': 35.2272,
+                'lon': -80.8431,
+                'units': 'imperial',
+                'appid': 'test-key',
+            },
+        )
 
     @patch('weatherApp.services.requests.get')
     def test_connection_error_returns_existing_error_message(self, get):
