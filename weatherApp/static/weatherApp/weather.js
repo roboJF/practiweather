@@ -1,53 +1,54 @@
 (() => {
+    const searchForm = document.getElementById('citySearchForm');
+    const cityInput = document.getElementById('citySearch');
     const mapElement = document.getElementById('weatherMap');
     const statusElement = document.getElementById('mapStatus');
+    const csrfToken = searchForm.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    if (!mapElement || typeof maplibregl === 'undefined') {
-        if (statusElement) {
-            statusElement.textContent = 'The map could not be loaded.';
-        }
-        return;
-    }
-
-    const initialLatitude = Number.parseFloat(mapElement.dataset.latitude);
-    const initialLongitude = Number.parseFloat(mapElement.dataset.longitude);
-    const hasInitialLocation = (
-        Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude)
-    );
-    const initialCenter = hasInitialLocation
-        ? [initialLongitude, initialLatitude]
-        : [-98.5795, 39.8283];
-
-    const map = new maplibregl.Map({
-        container: mapElement,
-        style: 'https://tiles.openfreemap.org/styles/positron',
-        center: initialCenter,
-        zoom: hasInitialLocation ? 8 : 4,
-        attributionControl: true,
-    });
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-    let marker = hasInitialLocation
-        ? new maplibregl.Marker().setLngLat(initialCenter).addTo(map)
-        : null;
+    let map = null;
+    let marker = null;
     let activeRequest = null;
     let hasUserInteracted = false;
 
-    map.on('click', (event) => {
+    if (typeof maplibregl !== 'undefined') {
+        try {
+            map = new maplibregl.Map({
+                container: mapElement,
+                style: 'https://tiles.openfreemap.org/styles/positron',
+                center: [-98.5795, 39.8283],
+                zoom: 4,
+                attributionControl: true,
+            });
+            map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            map.on('click', (event) => {
+                hasUserInteracted = true;
+                setMarker(event.lngLat.lng, event.lngLat.lat);
+                requestWeather(mapElement.dataset.weatherUrl, {
+                    latitude: event.lngLat.lat.toString(),
+                    longitude: event.lngLat.lng.toString(),
+                }, false);
+            });
+        } catch (error) {
+            map = null;
+            mapElement.textContent = 'Map unavailable. City search still works.';
+        }
+    } else {
+        mapElement.textContent = 'Map unavailable. City search still works.';
+    }
+
+    searchForm.addEventListener('submit', (event) => {
+        event.preventDefault();
         hasUserInteracted = true;
-        setMarker(event.lngLat.lng, event.lngLat.lat);
-        loadWeather(event.lngLat.lat, event.lngLat.lng);
+        requestWeather(searchForm.dataset.weatherUrl, {
+            city: cityInput.value,
+        }, true);
     });
 
-    if (mapElement.dataset.useBrowserLocation === 'true') {
-        locateUser();
-    }
+    locateUser();
 
     function locateUser() {
         if (!navigator.geolocation) {
-            statusElement.textContent = (
-                'Using your approximate location. Click the map to explore.'
-            );
+            loadApproximateLocation();
             return;
         }
 
@@ -58,16 +59,15 @@
                     return;
                 }
 
-                const latitude = position.coords.latitude;
-                const longitude = position.coords.longitude;
-                map.flyTo({center: [longitude, latitude], zoom: 8});
-                setMarker(longitude, latitude);
-                loadWeather(latitude, longitude);
+                requestWeather(mapElement.dataset.weatherUrl, {
+                    latitude: position.coords.latitude.toString(),
+                    longitude: position.coords.longitude.toString(),
+                }, true);
             },
             () => {
-                statusElement.textContent = (
-                    'Using your approximate location. Click the map to explore.'
-                );
+                if (!hasUserInteracted) {
+                    loadApproximateLocation();
+                }
             },
             {
                 enableHighAccuracy: false,
@@ -77,7 +77,69 @@
         );
     }
 
+    function loadApproximateLocation() {
+        requestWeather(searchForm.dataset.weatherUrl, {city: ''}, true);
+    }
+
+    async function requestWeather(url, fields, centerMap) {
+        if (activeRequest) {
+            activeRequest.abort();
+        }
+
+        const controller = new AbortController();
+        activeRequest = controller;
+        statusElement.textContent = 'Loading weather...';
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: new URLSearchParams(fields),
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                throw new Error('Unable to load weather. Please try again.');
+            }
+
+            const {weather_data: weather} = await response.json();
+            if (activeRequest !== controller) {
+                return;
+            }
+            updateWeather(weather);
+
+            if (centerMap && Number.isFinite(weather.latitude)
+                && Number.isFinite(weather.longitude)) {
+                map?.flyTo({
+                    center: [weather.longitude, weather.latitude],
+                    zoom: 8,
+                });
+                setMarker(weather.longitude, weather.latitude);
+            }
+
+            statusElement.textContent = weather.temperature === 'N/A'
+                ? weather.conditions
+                : `Weather updated for ${weather.city}.`;
+        } catch (error) {
+            if (activeRequest === controller && error.name !== 'AbortError') {
+                statusElement.textContent = (
+                    error.message || 'Unable to load weather. Please try again.'
+                );
+            }
+        } finally {
+            if (activeRequest === controller) {
+                activeRequest = null;
+            }
+        }
+    }
+
     function setMarker(longitude, latitude) {
+        if (!map) {
+            return;
+        }
+
         const coordinates = [longitude, latitude];
         if (marker) {
             marker.setLngLat(coordinates);
@@ -85,50 +147,6 @@
             marker = new maplibregl.Marker()
                 .setLngLat(coordinates)
                 .addTo(map);
-        }
-    }
-
-    async function loadWeather(latitude, longitude) {
-        if (activeRequest) {
-            activeRequest.abort();
-        }
-        activeRequest = new AbortController();
-        statusElement.textContent = 'Loading weather...';
-
-        const requestBody = new URLSearchParams({
-            latitude: latitude.toString(),
-            longitude: longitude.toString(),
-        });
-        const csrfToken = document.querySelector(
-            '[name=csrfmiddlewaretoken]',
-        ).value;
-
-        try {
-            const response = await fetch(mapElement.dataset.weatherUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: requestBody,
-                signal: activeRequest.signal,
-            });
-            const payload = await response.json();
-
-            if (!response.ok) {
-                throw new Error(payload.error || 'Unable to load weather.');
-            }
-
-            updateWeather(payload.weather_data);
-            statusElement.textContent = payload.weather_data.temperature === 'N/A'
-                ? payload.weather_data.conditions
-                : `Weather updated for ${payload.weather_data.city}.`;
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                statusElement.textContent = (
-                    error.message || 'Unable to load weather.'
-                );
-            }
         }
     }
 

@@ -13,6 +13,33 @@ from .services import (
 
 
 class IndexViewTests(SimpleTestCase):
+    @patch('weatherApp.views.get_weather')
+    @patch('weatherApp.views.get_current_location')
+    def test_get_renders_without_weather_requests(
+        self, get_location, get_weather
+    ):
+        response = self.client.get(reverse('weatherApp:index'))
+
+        self.assertEqual(response.status_code, 200)
+        get_location.assert_not_called()
+        get_weather.assert_not_called()
+        self.assertTemplateUsed(response, 'weatherApp/weatherApp.html')
+        self.assertContains(response, 'id="weatherMap"')
+        self.assertContains(response, 'id="citySearchForm"')
+        self.assertContains(response, 'Loading weather...')
+        self.assertContains(response, reverse('weatherApp:weather_by_city'))
+        self.assertContains(
+            response,
+            reverse('weatherApp:weather_by_coordinates'),
+        )
+
+    def test_index_only_accepts_get(self):
+        response = self.client.post(reverse('weatherApp:index'))
+
+        self.assertEqual(response.status_code, 405)
+
+
+class CityWeatherViewTests(SimpleTestCase):
     location = {
         'city': 'Baltimore',
         'region': 'Maryland',
@@ -27,50 +54,27 @@ class IndexViewTests(SimpleTestCase):
 
     @patch('weatherApp.views.get_weather')
     @patch('weatherApp.views.get_current_location')
-    def test_get_uses_location_as_default_city(self, get_location, get_weather):
-        get_location.return_value = self.location
-        get_weather.return_value = self.weather
-
-        response = self.client.get(reverse('weatherApp:index'))
-
-        self.assertEqual(response.status_code, 200)
-        get_weather.assert_called_once_with(self.default_city)
-        self.assertEqual(response.context['weather_data'], self.weather)
-        self.assertTrue(response.context['use_browser_location'])
-        self.assertTemplateUsed(response, 'weatherApp/weatherApp.html')
-        self.assertContains(response, 'id="weatherMap"')
-        self.assertContains(response, 'data-use-browser-location="true"')
-        self.assertContains(
-            response,
-            reverse('weatherApp:weather_by_coordinates'),
-        )
-
-    @patch('weatherApp.views.get_weather')
-    @patch('weatherApp.views.get_current_location')
-    def test_post_strips_and_uses_submitted_city(
+    def test_city_search_strips_and_uses_submitted_city(
         self,
         get_location,
         get_weather,
     ):
-        get_location.return_value = self.location
-        get_weather.return_value = {
-            **self.weather,
-            'city': 'Boston',
-        }
+        weather = {'city': 'Boston', 'temperature': 72, 'conditions': 'clear sky'}
+        get_weather.return_value = weather
 
         response = self.client.post(
-            reverse('weatherApp:index'),
+            reverse('weatherApp:weather_by_city'),
             {'city': '  Boston  '},
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'weather_data': weather})
         get_weather.assert_called_once_with('Boston')
-        self.assertFalse(response.context['use_browser_location'])
-        self.assertContains(response, 'data-use-browser-location="false"')
+        get_location.assert_not_called()
 
     @patch('weatherApp.views.get_weather')
     @patch('weatherApp.views.get_current_location')
-    def test_blank_post_uses_location_as_default_city(
+    def test_blank_search_uses_approximate_location(
         self,
         get_location,
         get_weather,
@@ -79,12 +83,18 @@ class IndexViewTests(SimpleTestCase):
         get_weather.return_value = self.weather
 
         response = self.client.post(
-            reverse('weatherApp:index'),
+            reverse('weatherApp:weather_by_city'),
             {'city': '   '},
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'weather_data': self.weather})
         get_weather.assert_called_once_with(self.default_city)
+
+    def test_city_endpoint_only_accepts_post(self):
+        response = self.client.get(reverse('weatherApp:weather_by_city'))
+
+        self.assertEqual(response.status_code, 405)
 
 
 class LocationServiceTests(SimpleTestCase):

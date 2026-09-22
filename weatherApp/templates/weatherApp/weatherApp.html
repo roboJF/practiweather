@@ -15,7 +15,12 @@
 </head>
 <body>
     <main class="weather-app">
-        <form method="post" class="search-container">
+        <form
+            method="post"
+            class="search-container"
+            id="citySearchForm"
+            data-weather-url="{% url 'weatherApp:weather_by_city' %}"
+        >
             {% csrf_token %}
             <input
                 type="text"
@@ -30,15 +35,9 @@
         </form>
 
         <section class="weather-info" aria-live="polite">
-            <div class="city-name" id="cityName">
-                {{ weather_data.city }}
-            </div>
-            <div class="temperature" id="temperature">
-                {{ weather_data.temperature|floatformat:1 }}°F
-            </div>
-            <div class="conditions" id="conditions">
-                {{ weather_data.conditions|title }}
-            </div>
+            <div class="city-name" id="cityName">Loading weather...</div>
+            <div class="temperature" id="temperature"></div>
+            <div class="conditions" id="conditions"></div>
         </section>
 
         <section class="map-section" aria-labelledby="mapHeading">
@@ -49,12 +48,11 @@
             <div
                 id="weatherMap"
                 data-weather-url="{% url 'weatherApp:weather_by_coordinates' %}"
-                data-latitude="{{ weather_data.latitude|default:'' }}"
-                data-longitude="{{ weather_data.longitude|default:'' }}"
-                data-use-browser-location="{{ use_browser_location|yesno:'true,false' }}"
             ></div>
         </section>
     </main>
+
+    <noscript>JavaScript is required to load weather and use the map.</noscript>
 
     <script
         src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"

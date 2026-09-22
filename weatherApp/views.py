@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from .services import (
     format_location,
@@ -10,21 +10,18 @@ from .services import (
 )
 
 
+@require_GET
 def index(request):
-    location = get_current_location()
-    default_city = format_location(location)
-    city = default_city
+    return render(request, 'weatherApp/weatherApp.html')
 
-    if request.method == 'POST':
-        city = request.POST.get('city', '').strip()
-        if not city:
-            city = default_city
 
-    context = {
-        'weather_data': get_weather(city),
-        'use_browser_location': request.method == 'GET',
-    }
-    return render(request, 'weatherApp/weatherApp.html', context)
+@require_POST
+def weather_by_city(request):
+    city = request.POST.get('city', '').strip()
+    if not city:
+        city = format_location(get_current_location())
+
+    return JsonResponse({'weather_data': get_weather(city)})
 
 
 @require_POST
