@@ -82,6 +82,8 @@ def get_weather_by_coordinates(latitude, longitude, fallback_city='Selected loca
         data = response.json()
         return {
             'city': data['name'],
+            'city_id': data.get('id'),
+            'country': data.get('sys', {}).get('country', ''),
             'temperature': data['main']['temp'],
             'conditions': data['weather'][0]['description'],
             'latitude': latitude,

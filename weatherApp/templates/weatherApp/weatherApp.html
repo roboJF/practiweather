@@ -1,64 +1,69 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather App</title>
-    {% load static %}
+{% extends 'weatherApp/base.html' %}
+{% load static %}
+
+{% block extra_head %}
     <link
         rel="stylesheet"
         href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css"
         integrity="sha256-qx5w1Z7EBGW65+cDDaLzzPKBM/1QLmK9WY7vut/XpzI="
         crossorigin="anonymous"
     >
-    <link rel="stylesheet" href="{% static 'style.css' %}">
-</head>
-<body>
-    <main class="weather-app">
-        <form
-            method="post"
-            class="search-container"
-            id="citySearchForm"
-            data-weather-url="{% url 'weatherApp:weather_by_city' %}"
+{% endblock %}
+
+{% block content %}
+    <form
+        method="post"
+        class="search-container"
+        id="citySearchForm"
+        data-weather-url="{% url 'weatherApp:weather_by_city' %}"
+    >
+        {% csrf_token %}
+        <input
+            type="text"
+            name="city"
+            id="citySearch"
+            class="search-bar"
+            placeholder="Enter city..."
+            aria-label="City"
         >
-            {% csrf_token %}
-            <input
-                type="text"
-                name="city"
-                id="citySearch"
-                class="search-bar"
-                placeholder="Enter city..."
-            >
-            <button class="search-button" type="submit" id="searchButton">
-                Enter
-            </button>
-        </form>
+        <button class="search-button" type="submit" id="searchButton">Enter</button>
+    </form>
 
-        <section class="weather-info" aria-live="polite">
-            <div class="city-name" id="cityName">Loading weather...</div>
-            <div class="temperature" id="temperature"></div>
-            <div class="conditions" id="conditions"></div>
-        </section>
+    <section class="weather-info" aria-live="polite">
+        <div class="city-name" id="cityName">Loading weather...</div>
+        <div class="temperature" id="temperature"></div>
+        <div class="conditions" id="conditions"></div>
+        {% if user.is_authenticated %}
+            <button
+                class="save-button"
+                type="button"
+                id="saveCityButton"
+                data-save-url="{% url 'weatherApp:save_city' %}"
+                hidden
+            >Save city</button>
+            <p id="saveStatus" class="save-status" aria-live="polite"></p>
+        {% endif %}
+    </section>
 
-        <section class="map-section" aria-labelledby="mapHeading">
-            <h2 id="mapHeading">Explore the map</h2>
-            <p id="mapStatus" class="map-status" aria-live="polite">
-                Click anywhere on the map to see the weather there.
-            </p>
-            <div
-                id="weatherMap"
-                data-weather-url="{% url 'weatherApp:weather_by_coordinates' %}"
-            ></div>
-        </section>
-    </main>
+    <section class="map-section" aria-labelledby="mapHeading">
+        <h2 id="mapHeading">Explore the map</h2>
+        <p id="mapStatus" class="map-status" aria-live="polite">
+            Click anywhere on the map to see the weather there.
+        </p>
+        <div
+            id="weatherMap"
+            data-weather-url="{% url 'weatherApp:weather_by_coordinates' %}"
+        ></div>
+    </section>
 
     <noscript>JavaScript is required to load weather and use the map.</noscript>
+{% endblock %}
 
+{% block scripts %}
     <script
         src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"
         integrity="sha256-RamwepGJzlYFTGIKlHzPQeKR5YyV6bYVM7dAqqZe5cs="
         crossorigin="anonymous"
     ></script>
     <script src="{% static 'weatherApp/weather.js' %}"></script>
-</body>
-</html>
+{% endblock %}

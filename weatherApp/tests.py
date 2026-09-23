@@ -203,7 +203,9 @@ class WeatherServiceTests(SimpleTestCase):
         ]
         weather_response = Mock(status_code=200)
         weather_response.json.return_value = {
+            'id': 4460243,
             'name': 'Charlotte',
+            'sys': {'country': 'US'},
             'main': {'temp': 72.25},
             'weather': [{'description': 'clear sky'}],
         }
@@ -215,6 +217,8 @@ class WeatherServiceTests(SimpleTestCase):
             weather,
             {
                 'city': 'Charlotte',
+                'city_id': 4460243,
+                'country': 'US',
                 'temperature': 72.25,
                 'conditions': 'clear sky',
                 'latitude': 35.2272,
@@ -285,7 +289,9 @@ class WeatherServiceTests(SimpleTestCase):
     def test_coordinate_weather_uses_weather_endpoint_directly(self, get):
         response = Mock(status_code=200)
         response.json.return_value = {
+            'id': 4460243,
             'name': 'Charlotte',
+            'sys': {'country': 'US'},
             'main': {'temp': 72.25},
             'weather': [{'description': 'clear sky'}],
         }
@@ -297,6 +303,8 @@ class WeatherServiceTests(SimpleTestCase):
             weather,
             {
                 'city': 'Charlotte',
+                'city_id': 4460243,
+                'country': 'US',
                 'temperature': 72.25,
                 'conditions': 'clear sky',
                 'latitude': 35.2272,

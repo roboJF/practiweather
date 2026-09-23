@@ -1,0 +1,26 @@
+{% extends 'weatherApp/base.html' %}
+
+{% block title %}Saved cities | PractiWeather{% endblock %}
+
+{% block content %}
+    <section class="saved-page">
+        <h1>Saved cities</h1>
+        {% if cities %}
+            <ul class="saved-list">
+                {% for city in cities %}
+                    <li class="saved-city">
+                        <a href="{% url 'weatherApp:index' %}?lat={{ city.latitude }}&amp;lon={{ city.longitude }}">
+                            {{ city.name }}{% if city.country %}, {{ city.country }}{% endif %}
+                        </a>
+                        <form method="post" action="{% url 'weatherApp:delete_saved_city' city.pk %}">
+                            {% csrf_token %}
+                            <button class="remove-button" type="submit" aria-label="Remove {{ city.name }}">Remove</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>You have no saved cities yet. Search for one or choose a location on the map, then select “Save city.”</p>
+        {% endif %}
+    </section>
+{% endblock %}

@@ -3,12 +3,15 @@
     const cityInput = document.getElementById('citySearch');
     const mapElement = document.getElementById('weatherMap');
     const statusElement = document.getElementById('mapStatus');
+    const saveButton = document.getElementById('saveCityButton');
+    const saveStatus = document.getElementById('saveStatus');
     const csrfToken = searchForm.querySelector('[name=csrfmiddlewaretoken]').value;
 
     let map = null;
     let marker = null;
     let activeRequest = null;
     let hasUserInteracted = false;
+    let selectedWeather = null;
 
     if (typeof maplibregl !== 'undefined') {
         try {
@@ -44,7 +47,23 @@
         }, true);
     });
 
-    locateUser();
+    if (saveButton) {
+        saveButton.addEventListener('click', saveSelectedCity);
+    }
+
+    const locationParams = new URLSearchParams(window.location.search);
+    const savedLatitude = Number(locationParams.get('lat'));
+    const savedLongitude = Number(locationParams.get('lon'));
+    if (locationParams.has('lat') && locationParams.has('lon')
+        && Number.isFinite(savedLatitude) && Number.isFinite(savedLongitude)
+        && Math.abs(savedLatitude) <= 90 && Math.abs(savedLongitude) <= 180) {
+        requestWeather(mapElement.dataset.weatherUrl, {
+            latitude: savedLatitude.toString(),
+            longitude: savedLongitude.toString(),
+        }, true);
+    } else {
+        locateUser();
+    }
 
     function locateUser() {
         if (!navigator.geolocation) {
@@ -158,6 +177,62 @@
         document.getElementById('conditions').textContent = (
             toTitleCase(weather.conditions)
         );
+
+        if (saveButton) {
+            const canSave = Number.isInteger(weather.city_id)
+                && weather.city_id > 0
+                && Number.isFinite(weather.latitude)
+                && Number.isFinite(weather.longitude);
+            selectedWeather = canSave ? weather : null;
+            saveButton.hidden = !canSave;
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save city';
+            saveStatus.textContent = '';
+        }
+    }
+
+    async function saveSelectedCity() {
+        const weather = selectedWeather;
+        if (!weather) {
+            return;
+        }
+
+        saveButton.disabled = true;
+        saveStatus.textContent = 'Saving...';
+
+        try {
+            const response = await fetch(saveButton.dataset.saveUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: new URLSearchParams({
+                    latitude: weather.latitude.toString(),
+                    longitude: weather.longitude.toString(),
+                }),
+            });
+            if (response.redirected) {
+                throw new Error('Session expired. Please log in again.');
+            }
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Unable to save this city.');
+            }
+            if (selectedWeather === weather) {
+                saveButton.textContent = 'Saved';
+                saveStatus.textContent = result.created
+                    ? 'City added to your saved list.'
+                    : 'Already in your saved list.';
+            }
+        } catch (error) {
+            if (selectedWeather === weather) {
+                saveButton.disabled = false;
+                saveStatus.textContent = (
+                    error.message || 'Unable to save this city.'
+                );
+            }
+        }
     }
 
     function formatTemperature(temperature) {

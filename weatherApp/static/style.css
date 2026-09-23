@@ -12,6 +12,47 @@ body {
     text-align: center;
 }
 
+.site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.site-brand {
+    color: inherit;
+    font-size: 22px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.site-nav {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.site-nav a,
+.nav-button {
+    color: inherit;
+    font: inherit;
+}
+
+.nav-button {
+    border: 0;
+    background: none;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.account-name {
+    font-weight: bold;
+}
+
 .weather-app {
     width: min(960px, 100%);
     margin: 0 auto;
@@ -69,6 +110,122 @@ body {
     margin-top: 10px;
 }
 
+.save-button,
+.primary-button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border: 0;
+    border-radius: 5px;
+    background: black;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.save-button:hover,
+.primary-button:hover {
+    background: #333;
+}
+
+.save-button:disabled {
+    background: #666;
+    cursor: default;
+}
+
+.save-status {
+    min-height: 24px;
+    margin-top: 8px;
+}
+
+.auth-card,
+.saved-page {
+    max-width: 640px;
+    margin: 56px auto;
+    text-align: left;
+}
+
+.auth-card h1,
+.saved-page h1 {
+    margin-bottom: 24px;
+}
+
+.auth-card {
+    max-width: 440px;
+}
+
+.account-form {
+    margin-bottom: 24px;
+}
+
+.form-field {
+    margin-bottom: 20px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.form-field input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #aaa;
+    border-radius: 5px;
+    font: inherit;
+}
+
+.field-help,
+.field-error,
+.form-errors {
+    margin-top: 6px;
+    font-size: 14px;
+}
+
+.field-help {
+    color: #555;
+}
+
+.field-help ul,
+.form-errors ul {
+    padding-left: 20px;
+}
+
+.field-error,
+.form-errors {
+    color: #9a1c1c;
+}
+
+.saved-list {
+    list-style: none;
+}
+
+.saved-city {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.saved-city a {
+    color: inherit;
+    font-size: 18px;
+}
+
+.remove-button {
+    padding: 7px 10px;
+    border: 1px solid #aaa;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+}
+
+.remove-button:hover {
+    background: #eee;
+}
+
 .map-section {
     width: 100%;
     margin-bottom: 32px;
@@ -95,6 +252,16 @@ body {
 }
 
 @media (max-width: 600px) {
+    .site-header {
+        flex-wrap: wrap;
+        padding: 16px;
+    }
+
+    .site-nav {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
     .weather-app {
         padding: 16px;
     }
