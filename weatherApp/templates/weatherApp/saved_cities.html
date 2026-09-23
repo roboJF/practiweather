@@ -1,4 +1,5 @@
 {% extends 'weatherApp/base.html' %}
+{% load static %}
 
 {% block title %}Saved cities | PractiWeather{% endblock %}
 
@@ -6,12 +7,18 @@
     <section class="saved-page">
         <h1>Saved cities</h1>
         {% if cities %}
-            <ul class="saved-list">
+            <ul class="saved-list" data-weather-url="{% url 'weatherApp:weather_by_coordinates' %}">
                 {% for city in cities %}
                     <li class="saved-city">
-                        <a href="{% url 'weatherApp:index' %}?lat={{ city.latitude }}&amp;lon={{ city.longitude }}">
-                            {{ city.name }}{% if city.country %}, {{ city.country }}{% endif %}
-                        </a>
+                        <div class="saved-city-details">
+                            <a href="{% url 'weatherApp:index' %}?lat={{ city.latitude }}&amp;lon={{ city.longitude }}">{{ city.name }}</a>
+                            <strong
+                                class="saved-temperature"
+                                style="margin-left: 20px;"
+                                data-latitude="{{ city.latitude }}"
+                                data-longitude="{{ city.longitude }}"
+                            ></strong>
+                        </div>
                         <form method="post" action="{% url 'weatherApp:delete_saved_city' city.pk %}">
                             {% csrf_token %}
                             <button class="remove-button" type="submit" aria-label="Remove {{ city.name }}">Remove</button>
@@ -23,4 +30,8 @@
             <p>You have no saved cities yet. Search for one or choose a location on the map, then select “Save city.”</p>
         {% endif %}
     </section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'weatherApp/saved_cities.js' %}"></script>
 {% endblock %}

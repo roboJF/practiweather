@@ -214,6 +214,16 @@ body {
     font-size: 18px;
 }
 
+.saved-city-details {
+    display: flex;
+    align-items: center;
+}
+
+.saved-temperature {
+    font-weight: bold;
+    white-space: nowrap;
+}
+
 .remove-button {
     padding: 7px 10px;
     border: 1px solid #aaa;

@@ -113,8 +113,17 @@ class SavedCityTests(TestCase):
         self.assertTrue(first.json()['created'])
         self.assertFalse(second.json()['created'])
         self.assertEqual(SavedCity.objects.count(), 1)
-        self.assertContains(saved_page, 'Charlotte, US')
+        self.assertContains(saved_page, 'Charlotte')
+        self.assertNotContains(saved_page, 'Charlotte, US')
         self.assertContains(saved_page, '?lat=35.227200&amp;lon=-80.843100')
+        self.assertContains(saved_page, 'data-latitude="35.227200"')
+        self.assertContains(saved_page, 'data-longitude="-80.843100"')
+        self.assertContains(saved_page, 'style="margin-left: 20px;"')
+        self.assertContains(saved_page, 'weatherApp/saved_cities.js')
+        self.assertRegex(
+            saved_page.content.decode(),
+            r'Charlotte</a>\s*<strong\s+class="saved-temperature"',
+        )
 
     @patch('weatherApp.account_views.get_weather_by_coordinates')
     def test_unrecognized_location_is_not_saved(self, get_weather):
